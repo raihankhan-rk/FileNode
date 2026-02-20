@@ -1,0 +1,11 @@
+src/
+tests/
+.git/
+.github/
+*.md
+!README.md
+bunfig.toml
+tsconfig.json
+.env
+.env.*
+FILE_SERVER_IMPLEMENTATION_PLAN.md
