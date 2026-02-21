@@ -1,6 +1,6 @@
 {
   "name": "filenode-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Ultra-lightweight local file server for AI agents",
   "type": "module",
   "main": "dist/index.js",
@@ -30,11 +30,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/raihankhan_rk/FileNode"
+    "url": "https://github.com/raihankhan-rk/FileNode"
   },
-  "homepage": "https://github.com/raihankhan_rk/FileNode#readme",
+  "homepage": "https://github.com/raihankhan-rk/FileNode#readme",
   "bugs": {
-    "url": "https://github.com/raihankhan_rk/FileNode/issues"
+    "url": "https://github.com/raihankhan-rk/FileNode/issues"
   },
   "license": "MIT",
   "author": "raihan khan",
