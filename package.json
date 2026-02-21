@@ -1,6 +1,6 @@
 {
   "name": "filenode-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Ultra-lightweight local file server for AI agents",
   "type": "module",
   "main": "dist/index.js",
@@ -10,7 +10,8 @@
   "files": [
     "dist/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "demo.png"
   ],
   "engines": {
     "node": ">=20.0.0"
