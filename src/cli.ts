@@ -16,7 +16,7 @@ import {
   type GatewayStatus,
 } from "./node/index.js";
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 const HELP = `
 FileNode v${VERSION} - Ultra-lightweight local file server for AI agents
