@@ -438,6 +438,39 @@ bun test             # Run tests
 bun test --coverage  # Run with coverage
 ```
 
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** the repository and clone your fork
+2. **Install dependencies** with `bun install`
+3. **Create a branch** for your feature or fix: `git checkout -b my-feature`
+4. **Make your changes** -- the codebase is organized as:
+   - `src/core/` -- Pure file operation logic (shared by HTTP routes and node commands)
+   - `src/routes/` -- Hono HTTP route handlers (thin wrappers around core)
+   - `src/node/` -- OpenClaw Gateway WebSocket client, device identity, and command handlers
+   - `src/middleware/` -- Rate limiting, error handling, security headers
+   - `src/utils/` -- Config management, path validation, helpers
+5. **Add tests** for any new functionality in `tests/`
+6. **Run the test suite** to make sure nothing is broken: `bun test`
+7. **Submit a pull request** with a clear description of what you changed and why
+
+### Guidelines
+
+- Keep PRs focused -- one feature or fix per PR
+- Follow the existing code style (TypeScript strict mode, no semicolons optional)
+- All new core logic should go in `src/core/` so both HTTP and node transports can use it
+- Write tests for new features -- aim to cover happy path and error cases
+- Don't commit `~/.filenode/` config files, `.env` files, or secrets
+
+### Ideas for Contributions
+
+- Windows path handling improvements
+- File watching / live reload notifications
+- Compression support for large file transfers
+- Additional OpenClaw node commands (e.g. `files.search`, `files.diff`)
+- Plugin system for custom file processors
+
 ## Tech Stack
 
 - [Hono](https://hono.dev) -- Ultra-fast web framework
