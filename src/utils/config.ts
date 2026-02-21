@@ -9,7 +9,7 @@ const PID_PATH = join(CONFIG_DIR, "filenode.pid");
 
 function defaultConfig(): FileNodeConfig {
   return {
-    version: "0.2.1",
+    version: "0.2.2",
     port: 3333,
     host: "0.0.0.0",
     allowedPaths: [join(homedir(), "Documents"), join(homedir(), "Desktop")],
