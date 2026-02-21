@@ -2,6 +2,10 @@
 
 Ultra-lightweight local file server that exposes your file system as HTTP endpoints. Built for AI agents and automation tools that need seamless file access without SSH complexity.
 
+
+
+![Demo — OpenClaw bot fetching a screenshot from the user's Mac via FileNode](demo.png)
+
 ## Connect Your OpenClaw Bot to Your Files
 
 **Option A -- Node Pairing (recommended, no tokens in chat)**
