@@ -1,10 +1,7 @@
-import type { Context } from "hono";
-
 export interface FileNodeConfig {
   version: string;
   port: number;
   host: string;
-  token: string;
   allowedPaths: string[];
   maxFileSize: string;
   maxListDepth: number;
@@ -16,6 +13,8 @@ export interface FileNodeConfig {
   enableHTTPS: boolean;
   certPath: string | null;
   keyPath: string | null;
+  gateway: string | null;
+  displayName: string;
 }
 
 export interface DirectoryEntry {
@@ -66,6 +65,3 @@ export interface RateLimitEntry {
   resetAt: number;
 }
 
-export type AuthenticatedContext = Context & {
-  get(key: "token"): string;
-};

@@ -1,48 +1,10 @@
 import { Hono } from "hono";
-import { statSync, readFileSync } from "node:fs";
-import { extname } from "node:path";
+import { statSync } from "node:fs";
 import type { FileNodeConfig } from "../types/index.js";
+import { extractPath } from "../utils/extractPath.js";
+import { readFileCore } from "../core/index.js";
 import { validateAndResolvePath } from "../utils/pathValidator.js";
 import { parseMaxFileSize } from "../utils/config.js";
-import { extractPath } from "../utils/extractPath.js";
-
-const MIME_TYPES: Record<string, string> = {
-  ".txt": "text/plain",
-  ".md": "text/markdown",
-  ".html": "text/html",
-  ".css": "text/css",
-  ".js": "application/javascript",
-  ".ts": "application/typescript",
-  ".json": "application/json",
-  ".xml": "application/xml",
-  ".yaml": "text/yaml",
-  ".yml": "text/yaml",
-  ".csv": "text/csv",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".pdf": "application/pdf",
-  ".zip": "application/zip",
-  ".gz": "application/gzip",
-};
-
-function getMimeType(filePath: string): string {
-  const ext = extname(filePath).toLowerCase();
-  return MIME_TYPES[ext] ?? "application/octet-stream";
-}
-
-function isTextFile(mimeType: string): boolean {
-  return (
-    mimeType.startsWith("text/") ||
-    mimeType === "application/json" ||
-    mimeType === "application/javascript" ||
-    mimeType === "application/typescript" ||
-    mimeType === "application/xml"
-  );
-}
 
 export function filesReadRoute(config: FileNodeConfig): Hono {
   const app = new Hono();
@@ -50,84 +12,55 @@ export function filesReadRoute(config: FileNodeConfig): Hono {
 
   app.get("/files/*", (c) => {
     const pathToResolve = extractPath(c, "files");
+    const format = c.req.query("format") as
+      | "text"
+      | "json"
+      | "base64"
+      | undefined;
+    const linesParam = c.req.query("lines");
+    const lines = linesParam ? parseInt(linesParam, 10) : undefined;
 
-    const result = validateAndResolvePath(
+    // For large files (>10MB), stream using Bun.file() directly
+    const pathResult = validateAndResolvePath(
       pathToResolve,
       config.allowedPaths,
       true,
     );
-
-    if (!result.valid) {
-      return c.json({ error: result.error }, (result.status ?? 403) as any);
-    }
-
-    const stats = statSync(result.resolvedPath);
-    if (stats.isDirectory()) {
-      return c.json(
-        { error: "Path is a directory. Use /list/ endpoint instead." },
-        400,
-      );
-    }
-
-    if (stats.size > maxSize) {
-      return c.json(
-        { error: `File too large (${stats.size} bytes). Max: ${config.maxFileSize}` },
-        413,
-      );
-    }
-
-    const mimeType = getMimeType(result.resolvedPath);
-    const format = c.req.query("format");
-    const linesParam = c.req.query("lines");
-
-    // For large files (>10MB), stream using Bun.file()
-    if (stats.size > 10 * 1024 * 1024) {
-      const file = Bun.file(result.resolvedPath);
-      return new Response(file.stream(), {
-        headers: {
-          "Content-Type": mimeType,
-          "Content-Length": String(stats.size),
-        },
-      });
-    }
-
-    if (format === "base64") {
-      const content = readFileSync(result.resolvedPath);
-      return c.text(content.toString("base64"));
-    }
-
-    if (isTextFile(mimeType) || format === "text") {
-      const content = readFileSync(result.resolvedPath, "utf-8");
-
-      if (linesParam) {
-        const lines = parseInt(linesParam, 10);
-        if (isNaN(lines) || lines < 1) {
-          return c.json({ error: "lines must be a positive integer" }, 400);
-        }
-        const truncated = content.split("\n").slice(0, lines).join("\n");
-        c.header("Content-Type", "text/plain");
-        return c.text(truncated);
+    if (pathResult.valid) {
+      const stats = statSync(pathResult.resolvedPath);
+      if (!stats.isDirectory() && stats.size > 10 * 1024 * 1024 && stats.size <= maxSize) {
+        const { getMimeType } = require("../core/readFile.js");
+        const mimeType = getMimeType(pathResult.resolvedPath);
+        const file = Bun.file(pathResult.resolvedPath);
+        return new Response(file.stream(), {
+          headers: {
+            "Content-Type": mimeType,
+            "Content-Length": String(stats.size),
+          },
+        });
       }
-
-      if (format === "json" || mimeType === "application/json") {
-        try {
-          const parsed = JSON.parse(content);
-          return c.json(parsed);
-        } catch {
-          return c.json({ error: "File is not valid JSON" }, 400);
-        }
-      }
-
-      c.header("Content-Type", mimeType);
-      return c.text(content);
     }
 
-    // Binary files
-    const content = readFileSync(result.resolvedPath);
-    return new Response(content, {
+    const result = readFileCore({ path: pathToResolve, format, lines }, config);
+
+    if (!result.ok) {
+      return c.json({ error: result.error }, result.status as any);
+    }
+
+    const { data } = result;
+
+    if (data.isText) {
+      if (format === "json" || data.mimeType === "application/json") {
+        return c.json(JSON.parse(data.content as string));
+      }
+      c.header("Content-Type", data.mimeType);
+      return c.text(data.content as string);
+    }
+
+    return new Response(data.content as Buffer, {
       headers: {
-        "Content-Type": mimeType,
-        "Content-Length": String(stats.size),
+        "Content-Type": data.mimeType,
+        "Content-Length": String(data.size),
       },
     });
   });

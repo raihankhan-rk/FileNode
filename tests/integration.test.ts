@@ -1,20 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { createApp } from "../src/server";
-import { generateToken } from "../src/utils/crypto";
 import { mkdirSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { FileNodeConfig } from "../src/types";
 
 const TEST_DIR = join(tmpdir(), "filenode-test-" + Date.now());
-const TEST_TOKEN = generateToken();
 
 function defaultTestConfig(): FileNodeConfig {
   return {
     version: "0.1.0",
     port: 0,
     host: "localhost",
-    token: TEST_TOKEN,
     allowedPaths: [TEST_DIR],
     maxFileSize: "10MB",
     maxListDepth: 3,
@@ -26,6 +23,8 @@ function defaultTestConfig(): FileNodeConfig {
     enableHTTPS: false,
     certPath: null,
     keyPath: null,
+    gateway: null,
+    displayName: "FileNode",
   };
 }
 
@@ -33,11 +32,7 @@ const config = defaultTestConfig();
 const { app } = createApp(config);
 
 function request(path: string, options: RequestInit = {}) {
-  const headers = new Headers(options.headers);
-  if (!headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${TEST_TOKEN}`);
-  }
-  return app.request(path, { ...options, headers });
+  return app.request(path, options);
 }
 
 describe("Integration Tests", () => {
@@ -56,34 +51,13 @@ describe("Integration Tests", () => {
   });
 
   describe("GET /health", () => {
-    it("should return health status without auth", async () => {
+    it("should return health status", async () => {
       const res = await app.request("/health");
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.status).toBe("healthy");
       expect(body.version).toBe("0.1.0");
       expect(typeof body.uptime).toBe("number");
-    });
-  });
-
-  describe("Authentication", () => {
-    it("should reject requests without auth header", async () => {
-      const res = await app.request("/list/" + encodeURIComponent(TEST_DIR));
-      expect(res.status).toBe(401);
-    });
-
-    it("should reject invalid tokens", async () => {
-      const res = await app.request("/list/" + encodeURIComponent(TEST_DIR), {
-        headers: { Authorization: "Bearer fnk_invalidtoken" },
-      });
-      expect(res.status).toBe(403);
-    });
-
-    it("should reject malformed auth headers", async () => {
-      const res = await app.request("/list/" + encodeURIComponent(TEST_DIR), {
-        headers: { Authorization: "Basic abc123" },
-      });
-      expect(res.status).toBe(401);
     });
   });
 
@@ -223,7 +197,7 @@ describe("Integration Tests", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.appended).toBe(true);
-      expect(body.newSize).toBe(9); // "Start End"
+      expect(body.newSize).toBe(9);
     });
 
     it("should create file if it doesn't exist", async () => {

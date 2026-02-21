@@ -2,30 +2,41 @@
 
 Ultra-lightweight local file server that exposes your file system as HTTP endpoints. Built for AI agents and automation tools that need seamless file access without SSH complexity.
 
-## Give Your OpenClaw Bot Access to Your Files in 60 Seconds
+## Connect Your OpenClaw Bot to Your Files
+
+**Option A -- Node Pairing (recommended, no tokens in chat)**
+
+```
+1. Install & start       →  filenode start --gateway localhost:18789
+2. Approve the pairing   →  openclaw nodes approve (on your gateway)
+3. Done. Your agent can now access files through the secure channel.
+```
+
+No tokens, no tunneling, no copy-pasting credentials. FileNode registers as a node on your OpenClaw Gateway and the agent invokes file commands directly.
+
+**Option B -- HTTP + Tunnel**
 
 ```
 1. Install & start       →  filenode start
-2. Copy the auth token   →  fnk_xxxxxxxxxxxxxxxx (printed on startup)
-3. Tunnel the port       →  ngrok http 3333
-4. Give your bot:
+2. Tunnel the port       →  ngrok http 3333
+3. Give your bot:
      API URL  →  https://abc123.ngrok.io
-     Token    →  fnk_xxxxxxxxxxxxxxxx
-5. Done. Your bot can now browse, read, and write files on your machine.
+4. Done. Your bot can now browse, read, and write files on your machine.
 ```
 
-The bot hits `GET /` and gets a full self-documenting API response -- every endpoint, query parameter, and usage tip -- plus a listing of your directories. Zero setup on the bot side.
+The bot hits `GET /` and gets a full self-documenting API response -- every endpoint, query parameter, and usage tip -- plus a listing of your directories. No authentication needed.
 
 ## Features
 
 - **Fast** -- Hono.js + Bun runtime, sub-5ms response times
-- **Secure** -- Token auth, path traversal prevention, rate limiting, security headers
-- **Simple** -- Single command to start, auto-generates config and auth token
+- **Secure** -- Path traversal prevention, rate limiting, security headers, configurable path allowlist
+- **Simple** -- Single command to start, auto-generates config
 - **Full CRUD** -- Read, write, append, delete files and directories
 - **Streaming** -- Large file support with streaming responses
 - **Smart paths** -- Fuzzy whitespace matching handles macOS screenshot filenames and other Unicode edge cases
 - **Self-documenting** -- `GET /` returns full API docs, tips, and directory listing so bots can figure out usage on their own
 - **Cross-platform** -- Works on macOS, Linux, and Windows
+- **OpenClaw Node** -- Connects directly to the OpenClaw Gateway as a paired node, no credentials in chat
 
 ## Quick Start
 
@@ -43,11 +54,11 @@ bun link && bun link filenode-server
 filenode start
 ```
 
-On first run, FileNode generates a config file at `~/.filenode/config.json` with a secure auth token. The full token is printed on startup so you can copy it directly into your bot or agent.
+On first run, FileNode generates a config file at `~/.filenode/config.json` with default settings.
 
 ## Exposing Your Server (Tunneling)
 
-FileNode runs on `localhost:3333` by default. To let a cloud-based AI bot access it, you need to expose it via a tunnel. Here are two options:
+FileNode runs on `localhost:3333` by default. To let a cloud-based AI bot access it, you need to expose it via a tunnel. Here are some options:
 
 ### Option 1: ngrok (Recommended)
 
@@ -66,7 +77,7 @@ ngrok config add-authtoken <your-ngrok-token>
 ngrok http 3333
 ```
 
-ngrok gives you a public URL like `https://abc123.ngrok-free.app`. Give this to your bot along with the FileNode auth token.
+ngrok gives you a public URL like `https://abc123.ngrok-free.app`. Give this URL to your bot.
 
 ### Option 2: Cloudflare Tunnel
 
@@ -103,9 +114,69 @@ For private networks without exposing to the public internet:
 # e.g. http://100.x.y.z:3333
 ```
 
-## Using with OpenClaw (Step by Step)
+## Using with OpenClaw
 
-Here's the full walkthrough to connect an OpenClaw bot to your local files:
+### Method 1: Node Pairing (Recommended)
+
+Node pairing connects FileNode directly to the OpenClaw Gateway over WebSocket. The agent can invoke file commands through the Gateway's secure channel -- no tunneling needed.
+
+**Step 1: Start FileNode in node mode**
+
+```bash
+filenode start --gateway localhost:18789
+```
+
+You'll see:
+
+```
+  ╔══════════════════════════════════════════╗
+  ║     FileNode v0.1.0 — Node Mode        ║
+  ╠══════════════════════════════════════════╣
+  ║  Gateway:  ws://localhost:18789          ║
+  ╚══════════════════════════════════════════╝
+
+  Commands registered:
+    • files.list
+    • files.read
+    • files.write
+    • files.append
+    • files.delete
+    • files.mkdir
+    • files.info
+
+  ⏳ Connecting to Gateway...
+  🔐 Responding to challenge...
+  ⏳ Pairing requested. Run "openclaw nodes approve" on your gateway.
+```
+
+**Step 2: Approve the pairing**
+
+On your OpenClaw gateway, run:
+
+```bash
+openclaw nodes approve
+```
+
+Once approved, FileNode saves a device token to `~/.filenode/node.json` for automatic reconnection.
+
+**Step 3: Done**
+
+The agent can now invoke file commands (like `files.list`, `files.read`, `files.write`) through the Gateway. No credentials flow through chat.
+
+You can also run both the HTTP server and node mode simultaneously:
+
+```bash
+filenode start --gateway localhost:18789 --port 3333
+```
+
+To persist the gateway setting:
+
+```bash
+filenode config set gateway localhost:18789
+filenode start
+```
+
+### Method 2: HTTP + Tunnel
 
 **Step 1: Start FileNode**
 
@@ -122,10 +193,6 @@ You'll see:
   ║  Server:  http://0.0.0.0:3333            ║
   ║  Config:  ~/.filenode/config.json        ║
   ╚══════════════════════════════════════════╝
-
-  Auth Token (copy this for your bot):
-
-  fnk_42997d4b868d7c2d7f5864c40162beecb4a79841ee8ead61f884e8ab67b3cf92
 
   Allowed paths:
     - /Users/you/Documents
@@ -153,14 +220,13 @@ ngrok http 3333
 # Output: https://abc123.ngrok-free.app -> http://localhost:3333
 ```
 
-**Step 4: Give your OpenClaw bot the details**
+**Step 4: Give your bot the URL**
 
 Tell your bot:
 
 > Here's access to my local filesystem:
 > - API endpoint: `https://abc123.ngrok-free.app`
-> - Auth token: `fnk_42997d4b868d7c2d7f5864c40162beecb4a79841ee8ead61f884e8ab67b3cf92`
-> - Hit GET / with the auth token to see all available endpoints and directories.
+> - Hit GET / to see all available endpoints and directories.
 
 **Step 5: Done**
 
@@ -169,12 +235,14 @@ The bot hits `GET /`, sees the full API documentation and your directory listing
 ## CLI
 
 ```bash
-filenode start                        # Start server (default port 3333)
+filenode start                        # Start HTTP server (default port 3333)
 filenode start --port 8080            # Start on custom port
+filenode start --gateway localhost:18789  # Start as OpenClaw node
+filenode start --gateway localhost:18789 --port 3333  # Both HTTP + node
 filenode stop                         # Stop running server
-filenode token regenerate             # Generate new auth token
 filenode config show                  # Display configuration
 filenode config set port 4444         # Update a setting
+filenode config set gateway localhost:18789  # Set gateway permanently
 filenode config set allowedPaths ~/Documents ~/Projects
 filenode config set allowedPaths all  # Allow access to entire filesystem
 filenode config add ~/Downloads       # Add a path without replacing existing ones
@@ -185,18 +253,14 @@ filenode help                         # Show help
 
 ## API
 
-All endpoints except `/health` require a Bearer token:
-
-```
-Authorization: Bearer fnk_xxxxxxxxxxxxxxxxxxxx
-```
+All endpoints are open -- no authentication required.
 
 ### GET /
 
 Discover all allowed directories and their top-level contents. Returns a full self-documenting API reference with endpoint descriptions, query parameters, body formats, examples, and tips. This is the best starting point for bots.
 
 ```bash
-curl -H "Authorization: Bearer $TOKEN" http://localhost:3333/
+curl http://localhost:3333/
 ```
 
 ### GET /health
@@ -211,8 +275,7 @@ curl http://localhost:3333/health
 List directory contents.
 
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3333/list/Users/you/Documents?recursive=true&maxDepth=2"
+curl "http://localhost:3333/list/Users/you/Documents?recursive=true&maxDepth=2"
 ```
 
 Response:
@@ -233,27 +296,22 @@ Read file contents.
 
 ```bash
 # Read as text
-curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:3333/files/Users/you/Documents/notes.txt
+curl http://localhost:3333/files/Users/you/Documents/notes.txt
 
 # Read as JSON
-curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3333/files/Users/you/Documents/data.json?format=json"
+curl "http://localhost:3333/files/Users/you/Documents/data.json?format=json"
 
 # Read first 10 lines
-curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3333/files/Users/you/Documents/log.txt?lines=10"
+curl "http://localhost:3333/files/Users/you/Documents/log.txt?lines=10"
 
 # Read as base64
-curl -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3333/files/Users/you/Documents/image.png?format=base64"
+curl "http://localhost:3333/files/Users/you/Documents/image.png?format=base64"
 ```
 
 For filenames with spaces or special characters, use the `?path=` query parameter instead of encoding them in the URL:
 
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  --get --data-urlencode "path=/Users/you/Desktop/Screenshot 2026-02-20 at 6.33.06 PM.png" \
+curl --get --data-urlencode "path=/Users/you/Desktop/Screenshot 2026-02-20 at 6.33.06 PM.png" \
   http://localhost:3333/files/
 ```
 
@@ -264,7 +322,7 @@ The `?path=` parameter works on all endpoints (`/files/`, `/list/`, `/append/`, 
 Write or overwrite a file.
 
 ```bash
-curl -X POST -H "Authorization: Bearer $TOKEN" \
+curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"content": "Hello World"}' \
   http://localhost:3333/files/Users/you/Documents/new.txt
@@ -276,7 +334,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 Append to a file (creates if it doesn't exist).
 
 ```bash
-curl -X POST -H "Authorization: Bearer $TOKEN" \
+curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"content": "\nNew line"}' \
   http://localhost:3333/append/Users/you/Documents/log.txt
@@ -289,12 +347,10 @@ Delete a file or directory.
 
 ```bash
 # Delete file
-curl -X DELETE -H "Authorization: Bearer $TOKEN" \
-  http://localhost:3333/files/Users/you/Documents/old.txt
+curl -X DELETE http://localhost:3333/files/Users/you/Documents/old.txt
 
 # Delete directory (requires recursive=true)
-curl -X DELETE -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:3333/files/Users/you/Documents/old_folder?recursive=true"
+curl -X DELETE "http://localhost:3333/files/Users/you/Documents/old_folder?recursive=true"
 ```
 
 ### POST /mkdir/:path
@@ -302,8 +358,7 @@ curl -X DELETE -H "Authorization: Bearer $TOKEN" \
 Create a directory (including parent directories).
 
 ```bash
-curl -X POST -H "Authorization: Bearer $TOKEN" \
-  http://localhost:3333/mkdir/Users/you/Documents/new/nested/dir
+curl -X POST http://localhost:3333/mkdir/Users/you/Documents/new/nested/dir
 # {"path":"...","created":true}
 ```
 
@@ -315,7 +370,6 @@ Config file: `~/.filenode/config.json`
 {
   "port": 3333,
   "host": "0.0.0.0",
-  "token": "fnk_...",
   "allowedPaths": ["~/Documents", "~/Desktop"],
   "maxFileSize": "1GB",
   "maxListDepth": 3,
@@ -323,7 +377,20 @@ Config file: `~/.filenode/config.json`
   "enableLogging": true,
   "logLevel": "info",
   "enableCORS": true,
-  "corsOrigins": ["*"]
+  "corsOrigins": ["*"],
+  "gateway": null,
+  "displayName": "FileNode"
+}
+```
+
+When using node mode, a separate identity file is stored at `~/.filenode/node.json`:
+
+```json
+{
+  "deviceId": "a1b2c3d4e5f6...",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\n...",
+  "privateKey": "-----BEGIN PRIVATE KEY-----\n...",
+  "deviceToken": "issued-by-gateway-after-pairing"
 }
 ```
 
@@ -349,13 +416,13 @@ Restart the server after changing the config for it to take effect.
 
 ## Security
 
-- **Token auth** -- Timing-safe comparison, full token printed on startup for easy copy, never logged in request logs
 - **Path traversal prevention** -- All paths normalized and validated against a configurable allowlist
-- **Rate limiting** -- Per-token, configurable requests per minute
+- **Rate limiting** -- Configurable requests per minute
 - **Security headers** -- X-Content-Type-Options, X-Frame-Options, X-XSS-Protection
 - **Atomic writes** -- Temp file + rename to prevent corruption
 - **File size limits** -- Configurable max file size
 - **Fuzzy filename matching** -- Handles Unicode whitespace variants (macOS narrow no-break spaces, etc.) without exposing unrelated files
+- **OpenClaw node pairing** -- Ed25519 device identity, challenge-response authentication with the Gateway, no credentials in chat
 - **Tunnel-safe** -- Works behind ngrok, Cloudflare Tunnel, and reverse proxies with no extra config
 
 ## Development

@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import pino from "pino";
 import type { FileNodeConfig } from "./types/index.js";
-import { authMiddleware } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { loggingMiddleware } from "./middleware/logging.js";
 import { rateLimitMiddleware } from "./middleware/rateLimit.js";
@@ -40,16 +39,13 @@ export function createApp(config: FileNodeConfig) {
       cors({
         origin: config.corsOrigins.includes("*") ? "*" : config.corsOrigins,
         allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-        allowHeaders: ["Authorization", "Content-Type"],
+        allowHeaders: ["Content-Type"],
       }),
     );
   }
 
-  // Health check (no auth required)
   app.route("/", healthRoute());
 
-  // Auth + rate limit for all other routes
-  app.use("*", authMiddleware(config));
   app.use("*", rateLimitMiddleware(config.rateLimitPerMin));
 
   // Root discovery endpoint

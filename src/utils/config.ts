@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { FileNodeConfig } from "../types/index.js";
-import { generateToken } from "./crypto.js";
 
 const CONFIG_DIR = join(homedir(), ".filenode");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
@@ -13,7 +12,6 @@ function defaultConfig(): FileNodeConfig {
     version: "0.1.0",
     port: 3333,
     host: "0.0.0.0",
-    token: generateToken(),
     allowedPaths: [join(homedir(), "Documents"), join(homedir(), "Desktop")],
     maxFileSize: "1GB",
     maxListDepth: 3,
@@ -25,6 +23,8 @@ function defaultConfig(): FileNodeConfig {
     enableHTTPS: false,
     certPath: null,
     keyPath: null,
+    gateway: null,
+    displayName: "FileNode",
   };
 }
 

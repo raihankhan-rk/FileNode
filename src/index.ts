@@ -5,7 +5,6 @@ import type { FileNodeConfig } from "./types/index.js";
 
 export { createApp } from "./server.js";
 export { loadConfig, saveConfig, getConfigPath } from "./utils/config.js";
-export { generateToken, validateToken } from "./utils/crypto.js";
 export type { FileNodeConfig } from "./types/index.js";
 
 export async function startServer(configOverrides?: Partial<FileNodeConfig>) {
@@ -21,7 +20,6 @@ export async function startServer(configOverrides?: Partial<FileNodeConfig>) {
   writePidFile(process.pid);
 
   logger.info(`FileNode server running at http://${config.host}:${config.port}`);
-  logger.info(`Token: ${config.token.slice(0, 8)}${"*".repeat(config.token.length - 8)}`);
   logger.info(`Allowed paths: ${config.allowedPaths.join(", ")}`);
 
   const shutdown = () => {
